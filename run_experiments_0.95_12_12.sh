@@ -1,0 +1,12 @@
+#!/bin/bash
+
+CUDA_VISIBLE_DEVICES=0 python train_cifar10.py --expName rand --net mlpmixer --n_epochs 500 --lr 1e-3 --expNum 0 --sparsity 0.95 --diagPos1 18 76 94 105 107 117 140 141 188 213 221 242 --diagPos2 50 51 90 148 152 164 184 280 372 417 441 458
+CUDA_VISIBLE_DEVICES=0 python train_cifar10.py --expName rand --net mlpmixer --n_epochs 500 --lr 1e-3 --expNum 1 --sparsity 0.95 --diagPos1 0 22 40 62 72 155 191 194 197 211 227 248 --diagPos2 26 48 106 107 192 253 276 317 414 470 503 509
+CUDA_VISIBLE_DEVICES=0 python train_cifar10.py --expName rand --net mlpmixer --n_epochs 500 --lr 1e-3 --expNum 2 --sparsity 0.95 --diagPos1 1 38 67 69 87 97 100 109 146 196 235 252 --diagPos2 48 62 73 101 147 156 189 227 230 320 332 431
+CUDA_VISIBLE_DEVICES=0 python train_cifar10.py --expName rand --net mlpmixer --n_epochs 500 --lr 1e-3 --expNum 3 --sparsity 0.95 --diagPos1 45 67 97 152 159 183 184 191 204 221 246 248 --diagPos2 7 22 44 88 103 107 126 197 208 341 405 488
+CUDA_VISIBLE_DEVICES=0 python train_cifar10.py --expName rand --net mlpmixer --n_epochs 500 --lr 1e-3 --expNum 4 --sparsity 0.95 --diagPos1 7 22 23 74 86 109 124 138 179 191 207 208 --diagPos2 78 112 116 234 261 270 341 368 372 406 441 476
+CUDA_VISIBLE_DEVICES=0 python train_cifar10.py --expName rand --net mlpmixer --n_epochs 500 --lr 1e-3 --expNum 5 --sparsity 0.95 --diagPos1 49 72 89 119 127 141 179 186 217 218 219 247 --diagPos2 2 84 227 243 271 281 324 416 432 456 459 487
+CUDA_VISIBLE_DEVICES=0 python train_cifar10.py --expName rand --net mlpmixer --n_epochs 500 --lr 1e-3 --expNum 6 --sparsity 0.95 --diagPos1 6 21 39 54 97 108 127 132 150 158 182 198 --diagPos2 12 39 68 108 124 139 255 270 278 431 439 493
+CUDA_VISIBLE_DEVICES=0 python train_cifar10.py --expName rand --net mlpmixer --n_epochs 500 --lr 1e-3 --expNum 7 --sparsity 0.95 --diagPos1 3 11 17 65 86 112 209 215 216 224 237 243 --diagPos2 5 101 106 111 173 197 224 244 312 358 481 492
+CUDA_VISIBLE_DEVICES=0 python train_cifar10.py --expName rand --net mlpmixer --n_epochs 500 --lr 1e-3 --expNum 8 --sparsity 0.95 --diagPos1 17 19 21 104 109 146 184 200 201 206 226 235 --diagPos2 30 44 55 59 153 165 168 217 250 305 375 493
+CUDA_VISIBLE_DEVICES=0 python train_cifar10.py --expName rand --net mlpmixer --n_epochs 500 --lr 1e-3 --expNum 9 --sparsity 0.95 --diagPos1 20 28 98 103 120 131 133 149 184 210 217 252 --diagPos2 4 32 111 164 170 184 272 332 358 392 425 472

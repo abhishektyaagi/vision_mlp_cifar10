@@ -1,0 +1,12 @@
+#!/bin/bash
+
+CUDA_VISIBLE_DEVICES=0 python train_cifar10.py --expName atZero --net mlpmixer --n_epochs 500 --lr 1e-3 --expNum 0 --sparsity 0.95 --diagPos1 0 26 28 40 53 83 108 125 136 185 191 252 --diagPos2 0 15 45 53 114 129 205 284 304 318 334 436
+CUDA_VISIBLE_DEVICES=0 python train_cifar10.py --expName atZero --net mlpmixer --n_epochs 500 --lr 1e-3 --expNum 1 --sparsity 0.95 --diagPos1 0 23 32 66 89 150 166 177 196 223 230 244 --diagPos2 0 41 88 91 192 224 269 364 442 469 493 511
+CUDA_VISIBLE_DEVICES=0 python train_cifar10.py --expName atZero --net mlpmixer --n_epochs 500 --lr 1e-3 --expNum 2 --sparsity 0.95 --diagPos1 0 24 40 75 100 121 137 154 185 196 202 203 --diagPos2 0 100 172 183 184 265 272 394 440 446 474 479
+CUDA_VISIBLE_DEVICES=0 python train_cifar10.py --expName atZero --net mlpmixer --n_epochs 500 --lr 1e-3 --expNum 3 --sparsity 0.95 --diagPos1 0 32 51 74 80 88 144 145 173 186 207 254 --diagPos2 0 110 136 154 281 298 308 312 348 354 356 382
+CUDA_VISIBLE_DEVICES=0 python train_cifar10.py --expName atZero --net mlpmixer --n_epochs 500 --lr 1e-3 --expNum 4 --sparsity 0.95 --diagPos1 0 28 89 109 117 137 171 184 187 194 195 248 --diagPos2 0 78 79 114 187 214 259 317 387 419 458 500
+CUDA_VISIBLE_DEVICES=0 python train_cifar10.py --expName atZero --net mlpmixer --n_epochs 500 --lr 1e-3 --expNum 5 --sparsity 0.95 --diagPos1 0 15 58 59 69 106 122 133 170 186 205 230 --diagPos2 0 124 217 271 290 386 406 410 414 420 452 476
+CUDA_VISIBLE_DEVICES=0 python train_cifar10.py --expName atZero --net mlpmixer --n_epochs 500 --lr 1e-3 --expNum 6 --sparsity 0.95 --diagPos1 0 40 56 57 73 92 108 160 175 185 196 235 --diagPos2 0 48 69 160 247 295 305 349 373 387 400 436
+CUDA_VISIBLE_DEVICES=0 python train_cifar10.py --expName atZero --net mlpmixer --n_epochs 500 --lr 1e-3 --expNum 7 --sparsity 0.95 --diagPos1 0 25 31 67 87 103 119 144 147 189 198 241 --diagPos2 0 115 154 163 170 287 303 318 331 390 455 503
+CUDA_VISIBLE_DEVICES=0 python train_cifar10.py --expName atZero --net mlpmixer --n_epochs 500 --lr 1e-3 --expNum 8 --sparsity 0.95 --diagPos1 0 58 67 83 91 101 127 144 194 216 229 252 --diagPos2 0 41 57 107 112 186 189 203 307 381 425 479
+CUDA_VISIBLE_DEVICES=0 python train_cifar10.py --expName atZero --net mlpmixer --n_epochs 500 --lr 1e-3 --expNum 9 --sparsity 0.95 --diagPos1 0 17 33 60 100 110 122 130 169 170 172 249 --diagPos2 0 122 129 135 175 183 190 233 275 358 410 510

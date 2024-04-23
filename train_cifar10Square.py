@@ -54,7 +54,7 @@ parser.add_argument('--diagPos3', nargs='+', default='0', metavar='P', help='dia
 parser.add_argument('--diagPos4', nargs='+', default='0', metavar='P', help='diagonal position (default: 0)')
 parser.add_argument('--expNum', type=int, default='1', metavar='E', help='experiment number (default: 1)')
 parser.add_argument('--sparsity', default='0.8', type=float, help="sparsity for mask")
-parser.add_argument('--depth', type=int, default='6', help='depth of transformer')
+parser.add_argument('--depth', default='6', type=int, help="depth for model")
 
 args = parser.parse_args()
 
@@ -129,19 +129,20 @@ elif args.net=="convmixer":
     # from paper, accuracy >96%. you can tune the depth and dim to scale accuracy and speed.
     net = ConvMixer(256, 16, kernel_size=args.convkernel, patch_size=1, n_classes=10)
 elif args.net=="mlpmixer":
-    from models.mlpmixer import MLPMixer
+    #from models.maskedmlpmixerSquare import MLPMixer
+    from models.mlpmixerSquare import MLPMixer
     net = MLPMixer(
     image_size = 32,
     channels = 3,
     patch_size = args.patch,
-    dim = 512,
+    dim = 256,
     depth = args.depth,
-    num_classes = 10
-    #diagPos1 = args.diagPos1,
-    #diagPos2 = args.diagPos2,
-    #sparsity=args.sparsity,
-    #diagPos3 = args.diagPos3,
-    #diagPos4 = args.diagPos4
+    num_classes = 10,
+    diagPos1 = args.diagPos1,
+    diagPos2 = args.diagPos2,
+    sparsity=args.sparsity,
+    diagPos3 = args.diagPos3,
+    diagPos4 = args.diagPos4
 )
 elif args.net=="vit_small":
     from models.vit_small import ViT
@@ -368,7 +369,7 @@ for epoch in range(start_epoch, args.n_epochs):
         f.write(str(best_acc)) """
 
 #Save maxAcc to a file
-with open(f'log/log_{args.net}_{args.depth}_patch{args.patch}_maxAcc_{args.expNum}_{args.expName}_{args.sparsity}.txt', 'a') as f:
+with open(f'log/log_{args.net}Square_{args.depth}_patch{args.patch}_maxAcc_{args.expNum}_{args.expName}_{args.sparsity}.txt', 'a') as f:
     f.write(str(maxAcc))
 
 # writeout wandb
