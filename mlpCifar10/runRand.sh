@@ -1,0 +1,3 @@
+CUDA_VISIBLE_DEVICES=1 python train_cifar10.py --expName rand --net mlpmixer --n_epochs 300 --lr 1e-3 --expNum 1 --sparsity 0.99674479 
+CUDA_VISIBLE_DEVICES=1 python train_cifar10.py --expName rand --net mlpmixer --n_epochs 300 --lr 1e-3 --expNum 2 --sparsity 0.99674479 
+CUDA_VISIBLE_DEVICES=1 python train_cifar10.py --expName rand --net mlpmixer --n_epochs 300 --lr 1e-3 --expNum 3 --sparsity 0.99674479 
