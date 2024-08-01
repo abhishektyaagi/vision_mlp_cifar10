@@ -20,11 +20,12 @@ import torchvision.transforms as transforms
 
 import os
 import argparse
+import pdb
 import pandas as pd
 import csv
-import pdb
 import time
 import math
+import pickle
 
 #from models import *
 from utils import progress_bar
@@ -32,13 +33,16 @@ from randomaug import RandAugment
 #from models.vit import ViT
 #from models.convmixer import ConvMixer
 
+from customFCGoogleSlow import CustomFullyConnectedLayer as customLinear
+from customConv1dSlow import CustomConv1d
+
 # parsers
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
 parser.add_argument('--lr', default=1e-4, type=float, help='learning rate') # resnets.. 1e-3, Vit..1e-4
 parser.add_argument('--opt', default="adam")
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
 parser.add_argument('--noaug', action='store_false', help='disable use randomaug')
-parser.add_argument('--noamp', action='store_true', help='disable mixed precision training. for older pytorch versions')
+parser.add_argument('--noamp', action='store_false', help='disable mixed precision training. for older pytorch versions')
 parser.add_argument('--nowandb', action='store_true', help='disable wandb')
 parser.add_argument('--mixup', action='store_true', help='add mixup augumentations')
 parser.add_argument('--net', default='vit')
@@ -58,17 +62,22 @@ parser.add_argument('--expNum', type=int, default='1', metavar='E', help='experi
 parser.add_argument('--sparsity', default='0.8', type=float, help="sparsity for mask")
 parser.add_argument('--depth', type=int, default='6', help='depth of transformer')
 parser.add_argument('--num_layers', type=int, default='1', help='number of layers for MLP')
+parser.add_argument("--k", type=int, default=1, help="number of neurons to keep")
 
 args = parser.parse_args()
+""" args = parser.parse_args()
 k = math.floor((1-args.sparsity)*3072)
-k=len(args.diagPos)
-print("k: ", k)
+print("k: ", k) """
+k = args.k
+print(k)
+alphaLR = 0.1
+
 # take in args
 usewandb = ~args.nowandb
 if usewandb:
     import wandb
-    watermark = "{}_lr{}_{}".format(args.net, args.sparsity,k)
-    wandb.init(project="mlpDiagMask",
+    watermark = "mlpMixer_{}_lr{}_{}".format(args.net, args.sparsity,k)
+    wandb.init(project="mlpParPD",
             name=watermark)
     wandb.config.update(args)
 
@@ -110,10 +119,10 @@ if aug:
 
 # Prepare dataset
 trainset = torchvision.datasets.CIFAR10(root='../data', train=True, download=True, transform=transform_train)
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=bs, shuffle=True, num_workers=8)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=bs, shuffle=True, num_workers=16)
 
 testset = torchvision.datasets.CIFAR10(root='../data', train=False, download=True, transform=transform_test)
-testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=8)
+testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=16)
 
 classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 seed = 5
@@ -135,22 +144,16 @@ elif args.net=="convmixer":
     # from paper, accuracy >96%. you can tune the depth and dim to scale accuracy and speed.
     net = ConvMixer(256, 16, kernel_size=args.convkernel, patch_size=1, n_classes=10)
 elif args.net=="mlpmixer":
-    #from mlp import MLP
-    from mlpMasked import MLP
-    #from mlpGoogle import MLP
-    net = MLP(
-    input_dim = 3072,
-    hidden_dim = 3072,
-    output_dim = 10,
-    num_layers=args.num_layers,
-    sparsity=args.sparsity,
-    #K = k,
-    diagPos = args.diagPos
-    #diagPos1 = args.diagPos1,
-    #diagPos2 = args.diagPos2,
-    #sparsity=args.sparsity,
-    #diagPos3 = args.diagPos3,
-    #diagPos4 = args.diagPos4
+    from mlpMaskedParameterized import MLPMixer
+    net = MLPMixer(
+    image_size = 32,
+    channels = 3,
+    patch_size = args.patch,
+    dim = 256,
+    depth = args.depth,
+    num_classes = 10,
+    alphaLR = alphaLR,
+    K = args.k
 )
 elif args.net=="vit_small":
     from models.vit_small import ViT
@@ -262,17 +265,27 @@ if args.resume:
 # Loss is CE
 criterion = nn.CrossEntropyLoss()
 
+def get_cosine_annealed_lr(iteration, total_iterations, initial_lr, min_lr):
+    return min_lr + 0.5 * (initial_lr - min_lr) * (1 + math.cos(math.pi * iteration / total_iterations))
+
+#pdb.set_trace()
 if args.opt == "adam":
-    optimizer = optim.Adam(net.parameters(), lr=args.lr)
+    #optimizer = optim.Adam(net.parameters(), lr=args.lr)
+    optimizer = optim.Adam(net.parameters(), lr=args.lr, weight_decay=1e-4) #Pixelated butterfly uses weight decay = 0.05 or 0.1 for ViT and Mixer
 elif args.opt == "sgd":
     optimizer = optim.SGD(net.parameters(), lr=args.lr)  
+elif args.opt == "adamw":
+    optimizer = optim.AdamW(net.parameters(), lr=args.lr, weight_decay=0.05)
     
 # use cosine scheduling
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.n_epochs)
 
+for name, param in net.named_parameters():
+    print(name, param.size())
+
 ##### Training
 scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
-def train(epoch):
+def train(epoch,alphaLR = 0.01):
     print('\nEpoch: %d' % epoch)
     net.train()
     train_loss = 0
@@ -285,9 +298,10 @@ def train(epoch):
             outputs = net(inputs)
             loss = criterion(outputs, targets)
         scaler.scale(loss).backward()
+        
         scaler.step(optimizer)
         scaler.update()
-        pdb.set_trace()
+        #pdb.set_trace()
         optimizer.zero_grad()
         
         train_loss += loss.item()
@@ -327,8 +341,10 @@ def test(epoch):
         state = {"model": net.state_dict(),
               "optimizer": optimizer.state_dict(),
               "scaler": scaler.state_dict()}
-        #save the checkpoint
-        torch.save(state, f'checkpoint/{args.net}_{args.depth}_patch{args.patch}_{args.expName}_{args.sparsity}.pth')
+        
+        #FIX THIS: save the checkpoint only after required K is achieved
+        if epoch > 70:
+            torch.save(state, f'checkpoint/mlpPD_{args.depth}_patch{args.patch}_{args.expName}_{args.sparsity}.pth')
         best_acc = acc
     
     os.makedirs("log", exist_ok=True)
@@ -346,37 +362,108 @@ if usewandb:
     
 net.cuda()
 maxAcc = 0
+alphaList = []
+alphatopkList = []
+alphaLR = get_cosine_annealed_lr(0, args.n_epochs, alphaLR, 1e-4)
 for epoch in range(start_epoch, args.n_epochs):
     start = time.time()
-    trainloss = train(epoch)
+    trainloss = train(epoch,alphaLR)
     val_loss, acc = test(epoch)
-    pdb.set_trace()
-    
+
+    #pdb.set_trace()
     scheduler.step(epoch-1) # step cosine scheduling
     
     list_loss.append(val_loss)
     list_acc.append(acc)
     
+    alphaLR = get_cosine_annealed_lr(epoch, args.n_epochs, alphaLR, 1e-4)
+    
+    # Log training..
+    """ if usewandb:
+        wandb.log({'epoch': epoch, 'train_loss': trainloss, 'val_loss': val_loss, "val_acc": acc, "lr": optimizer.param_groups[0]["lr"],
+                   "alphaLR": alphaLR,"Num_topk": len(torch.nonzero(net.recurrent_layer1.alpha_topk)),   
+                    "epoch_time": time.time()-start}) """
+
+    if usewandb:
+        log_data = {
+            'epoch': epoch, 
+            'train_loss': trainloss, 
+            'val_loss': val_loss, 
+            'val_acc': acc, 
+            'lr': optimizer.param_groups[0]["lr"],
+            'alphaLR': alphaLR,
+            'epoch_time': time.time() - start
+        }
+
+    #If a layer is customConv1d or customFC, update the alphaLR
+    #NOTE: We know which modules are customConv1d and customFC. So we can use this to speed up the process
+    numTopkDict = {}
+    alphaDict = {}
+    for name, module in net.named_modules():
+        if isinstance(module, CustomConv1d) or isinstance(module, customLinear):
+            #pdb.set_trace()
+            print("Updating alphaLR for ", name)
+            module.update_alpha_lr(alphaLR)
+            num_topk = len(torch.nonzero(module.alpha_topk))
+            numTopkDict[name] = num_topk
+            log_data[f"Num_topk_{name}"] = num_topk
+            alphaDict[name] = {
+            'alphaList': [],
+            'alphatopkList': []
+            }
+
+            if epoch % 5 == 0:
+                # Extract alpha and alpha_topk
+                if hasattr(module, 'alpha') and hasattr(module, 'alpha_topk'):
+                    alpha = module.alpha.cpu().detach().numpy().flatten()
+                    alphatopk = module.alpha_topk.cpu().detach().numpy()
+                    
+                    # Append the current values to the lists in the dictionary
+                    alphaDict[name]['alphaList'].append(alpha)
+                    alphaDict[name]['alphatopkList'].append(alphatopk)
+
+    #pdb.set_trace()
+    #net.recurrent_layer1.update_alpha_lr(alphaLR)
+
     #Save the maximum acc to a file
     if acc > maxAcc:
         maxAcc = acc
 
-    # Log training..
-    if usewandb:
-        wandb.log({'epoch': epoch, 'train_loss': trainloss, 'val_loss': val_loss, "val_acc": acc, "lr": optimizer.param_groups[0]["lr"],
-        "epoch_time": time.time()-start})
 
-    # Write out csv..
-    """ with open(f'log/log_{args.net}_patch{args.patch}.csv', 'w') as f:
-        writer = csv.writer(f, lineterminator='\n')
-        writer.writerow(list_loss) 
-        writer.writerow(list_acc) 
-    print(list_loss)
-    """
-    #Save the best accuracy to a file
-"""     with open(f'log/log_{args.net}_patch{args.patch}_best_acc_{args.expNum}.txt', 'w') as f:
-        f.write(str(best_acc)) """
+    #Get the value of alpha_topk from each layer
+    """ for name, module in net.named_modules():
+        if isinstance(module, CustomConv1d) or isinstance(module, customLinear):
+            num_topk = len(torch.nonzero(module.alpha_topk))
+            numTopkDict[name] = num_topk
+            log_data[f"Num_topk_{name}"] = num_topk
+            alphaDict[name] = {
+            'alphaList': [],
+            'alphatopkList': []
+        } """
+    
+    wandb.log(log_data)
 
+    """ if epoch % 5 == 0:
+        #pdb.set_trace()
+        alphatopk = net.recurrent_layer1.alpha_topk.cpu().detach().numpy()
+        alpha = net.recurrent_layer1.alpha.cpu().detach().numpy().flatten()
+        #alphatopksum = model.recurrent_layer1.alpha_topksum.cpu().numpy().flatten()
+        alphaList.append(alpha)
+        alphatopkList.append(alphatopk) """
+    
+    # During training, every 5 epochs, update the dictionary
+    """ if epoch % 5 == 0:
+        for name, module in net.named_modules():
+            if isinstance(module, (CustomConv1d, customLinear)):
+                # Extract alpha and alpha_topk
+                if hasattr(module, 'alpha') and hasattr(module, 'alpha_topk'):
+                    alpha = module.alpha.cpu().detach().numpy().flatten()
+                    alphatopk = module.alpha_topk.cpu().detach().numpy()
+                    
+                    # Append the current values to the lists in the dictionary
+                    alphaDict[name]['alphaList'].append(alpha)
+                    alphaDict[name]['alphatopkList'].append(alphatopk)
+ """
 #Save maxAcc to a file
 with open(f'log/log_{args.net}_{args.depth}_patch{args.patch}_maxAcc_{args.expName}_{args.sparsity}.txt', 'a') as f:
     f.write(str(maxAcc))
@@ -384,3 +471,16 @@ with open(f'log/log_{args.net}_{args.depth}_patch{args.patch}_maxAcc_{args.expNa
     f.write("\n")
     f.write(str(args.diagPos))
     f.write("\n")
+
+#Save alpha to a file
+save_path = f'./dataTopk/alpha_{args.k}.pkl'
+
+# Save the dictionary to a file
+with open(save_path, 'wb') as f:
+    pickle.dump(alphaDict, f)
+
+#np.save('./dataTopk/alphagoogle'+str(args.k)+'.npy', alphaList)
+#np.save('./dataTopk/alphatopk'+str(args.k)+'.npy', alphatopkList)
+
+
+

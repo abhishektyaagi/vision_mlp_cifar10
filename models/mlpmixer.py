@@ -3,6 +3,7 @@ from torch import nn
 from functools import partial
 from einops.layers.torch import Rearrange, Reduce
 
+
 pair = lambda x: x if isinstance(x, tuple) else (x, x)
 
 class PreNormResidual(nn.Module):
@@ -10,9 +11,11 @@ class PreNormResidual(nn.Module):
         super().__init__()
         self.fn = fn
         self.norm = nn.LayerNorm(dim)
-
+        
+    #Mask intended for layers in the model
     def forward(self, x):
         return self.fn(self.norm(x)) + x
+
 
 def FeedForward(dim, expansion_factor = 4, dropout = 0., dense = nn.Linear):
     inner_dim = int(dim * expansion_factor)

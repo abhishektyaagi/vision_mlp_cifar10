@@ -4,6 +4,7 @@ import numpy as np
 from maskGenerator import get_mask_pseudo_diagonal_numpy
 import pdb
 
+
 def generate_corrected_random_mask(hidden_dim, input_dim, sparsity):
     """
     Generates a random mask of size hidden_dim x input_dim with 
@@ -41,8 +42,12 @@ class MLP(nn.Module):
         self.apply_mask = apply_mask
         
         self.relu = nn.ReLU()
-        
+
+        seed = 5
+        torch.manual_seed(seed)
+        np.random.seed(seed)
         self.recurrent_layer1 = nn.Linear(input_dim, hidden_dim)
+        #pdb.set_trace()
         #mask1 = generate_corrected_random_mask(hidden_dim, input_dim, sparsity)
         mask1 = get_mask_pseudo_diagonal_numpy((hidden_dim,input_dim), sparsity=sparsity, experimentType="randDiagOneLayer", layerNum=1, numDiag=len(diagPos)
                                                 , diag_pos=diagPos, currLayer=1, debug=0)
@@ -56,9 +61,10 @@ class MLP(nn.Module):
 
         #self.recurrent_layer2 = nn.Linear(input_dim, hidden_dim)
         self.fc1 = nn.Linear(hidden_dim, output_dim)
-
+        
         if self.apply_mask:
             self.apply_mask_to_weights()
+        
         
     def apply_mask_to_weights(self):
         #Apply the mask to the recurrent_layer1
@@ -71,40 +77,15 @@ class MLP(nn.Module):
         #x = self.relu(x)
         x = x.view(x.size(0), -1)
 
-        """ patches = torch.nn.functional.unfold(x, kernel_size=2, stride=2)
-        num_patches = (32 // 2) * (32 // 2)
-
-        # Reshape to have the patch dimension first, then channel, height, and width of the patch
-        # Considering patches.shape[-1] gives us the total number of 2x2 patches across the image
-        patches = patches.reshape(x.shape[0], 3, 2, 2, num_patches)
-
-        # Permute to rearrange dimensions so we concatenate along the channel dimension last
-        patches = patches.permute(0, 4, 1, 2, 3).contiguous()
-
-        # Finally, flatten the patches to get the desired ordering
-        x = patches.view(x.shape[0], -1) """
         if self.apply_mask:
             self.apply_mask_to_weights()
 
         identity = x    
+        #pdb.set_trace()
         for _ in range(self.num_layers):
             x = self.recurrent_layer1(x)
             x = self.relu(x)
-            x = x + identity
-            #x = nn.LayerNorm(x.size())(x)
-        """ for _ in range(self.num_layers):
-            x = self.recurrent_layer2(x)
-            x = self.relu(x)
-         """
+            #x = x + identity
         x = self.fc1(x)
         
         return x
-
-
-# Example usage
-""" input_dim = 1024
-hidden_dim = 1024
-output_dim = 10
-num_layers = 3
-
-model = MLP(input_dim, hidden_dim, output_dim, num_layers) """
