@@ -143,13 +143,14 @@ class CustomFullyConnectedLayer(nn.Module):
 
         self.alpha = nn.Parameter(torch.empty(self.in_features, device=self.device, requires_grad=True))
         nn.init.constant_(self.alpha, 1/self.in_features)
-
+        #pdb.set_trace()
         assert torch.all(self.alpha >= 0)
 
     def compute_weights(self):
         self.alpha_topk = sparse_soft_topk_mask_dykstra(self.alpha, self.K, l=self.topkLR, num_iter=50).to(self.device)
         non_zero_alpha_indices = torch.nonzero(self.alpha_topk, as_tuple=False).squeeze()
         #print(non_zero_alpha_indices)
+        #pdb.set_trace()
         if non_zero_alpha_indices.dim() == 0:
             non_zero_alpha_indices = non_zero_alpha_indices.unsqueeze(0) 
         WSum = torch.zeros((self.in_features, self.out_features), device=self.device)

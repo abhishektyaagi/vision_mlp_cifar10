@@ -70,7 +70,7 @@ k = math.floor((1-args.sparsity)*3072)
 print("k: ", k) """
 k = args.k
 print(k)
-alphaLR = 0.05
+alphaLR = 0.1
 
 # take in args
 usewandb = ~args.nowandb
@@ -247,6 +247,7 @@ elif args.net=="swin":
 
 # For Multi-GPU
 if 'cuda' in device:
+    pdb.set_trace()
     print(device)
     if args.dp:
         print("using data parallel")
@@ -276,6 +277,8 @@ elif args.opt == "sgd":
     optimizer = optim.SGD(net.parameters(), lr=args.lr)  
 elif args.opt == "adamw":
     optimizer = optim.AdamW(net.parameters(), lr=args.lr, weight_decay=0.05)
+else:
+    raise ValueError(f"Unknown optimizer: {args.opt}")
     
 # use cosine scheduling
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.n_epochs)

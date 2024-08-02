@@ -43,12 +43,12 @@ def FeedForward(dim, expansion_factor = 4, dropout = 0., dense = customLinear,al
     inner_dim = int(dim * expansion_factor)
     #pdb.set_trace()
     return nn.Sequential(
-        #dense(dim, inner_dim,alphaLR=alphaLR,K=K),
-        dense(dim, inner_dim),
+        dense(dim, inner_dim,alphaLR=alphaLR,K=K),
+        #dense(dim, inner_dim),
         nn.GELU(),
         nn.Dropout(dropout),
-        #dense(inner_dim, dim,alphaLR=alphaLR,K=K),
-        dense(inner_dim, dim),
+        dense(inner_dim, dim,alphaLR=alphaLR,K=K),
+        #dense(inner_dim, dim),
         nn.Dropout(dropout)
     )
 

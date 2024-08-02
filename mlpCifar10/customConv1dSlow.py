@@ -24,7 +24,7 @@ class CustomConv1d(nn.Module):
         self.K = K
         self.topkLR = alphaLR
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+        #pdb.set_trace()
         self.weight = nn.Parameter(torch.empty(out_channels, in_channels // groups, kernel_size, device=self.device, dtype=torch.float32, requires_grad=True))
         nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
 
@@ -50,6 +50,7 @@ class CustomConv1d(nn.Module):
         if non_zero_alpha_indices.dim() == 0:
             non_zero_alpha_indices = non_zero_alpha_indices.unsqueeze(0)
         WSum = torch.zeros_like(self.weight)
+        #pdb.set_trace()
         for i in non_zero_alpha_indices:
             mask = get_mask_pseudo_diagonal_torch(self.weight.shape, sparsity=0.99967, experimentType="randDiagOneLayer", diag_pos=i)
             #pdb.set_trace()
