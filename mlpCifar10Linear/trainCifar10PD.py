@@ -9,14 +9,20 @@ written by @kentaroy47, @arutema47
 from __future__ import print_function
 
 import torch
+import deeplake
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
 import numpy as np
-
+from tin import TinyImageNetDataset
+from tinImg import TinyImageNetHFDataset
 import torchvision
 import torchvision.transforms as transforms
+from datasets import load_dataset
+from torch.utils.data import Dataset, DataLoader
+from torchvision import transforms
+from PIL import Image
 
 import os
 import argparse
@@ -63,6 +69,7 @@ parser.add_argument('--sparsity', default='0.8', type=float, help="sparsity for 
 parser.add_argument('--depth', type=int, default='6', help='depth of transformer')
 parser.add_argument('--num_layers', type=int, default='1', help='number of layers for MLP')
 parser.add_argument("--k", type=int, default=1, help="number of neurons to keep")
+parser.add_argument('--dataset', default='cifar10', type=str, help='dataset')
 
 args = parser.parse_args()
 """ args = parser.parse_args()
@@ -71,12 +78,16 @@ print("k: ", k) """
 k = args.k
 print(k)
 alphaLR = 0.05
+sparsity = args.sparsity
+
+# Set the cache directory
+os.environ["HF_DATASETS_CACHE"] = "/localdisk/Abhishek/.cache/huggingface/datasets"
 
 # take in args
 usewandb = ~args.nowandb
 if usewandb:
     import wandb
-    watermark = "mlpMixer_{}_lr{}_{}".format(args.net, args.sparsity,k)
+    watermark = "{}_{}_lr{}_{}_d{}_p{}_dim{}".format(args.net,args.dataset, args.sparsity,k,args.depth,args.patch,args.dimhead)
     wandb.init(project="mlpParPD",
             name=watermark)
     wandb.config.update(args)
@@ -118,11 +129,85 @@ if aug:
     transform_train.transforms.insert(0, RandAugment(N, M))
 
 # Prepare dataset
-trainset = torchvision.datasets.CIFAR10(root='../data', train=True, download=True, transform=transform_train)
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=bs, shuffle=True, num_workers=16)
+if args.dataset == "cifar10":
+    trainset = torchvision.datasets.CIFAR10(root='../data', train=True, download=True, transform=transform_train)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=bs, shuffle=True, num_workers=16)
 
-testset = torchvision.datasets.CIFAR10(root='../data', train=False, download=True, transform=transform_test)
-testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=16)
+    testset = torchvision.datasets.CIFAR10(root='../data', train=False, download=True, transform=transform_test)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=16)
+    imgSize = 32
+    numClasses = 10
+elif args.dataset == "cifar100":
+    trainset = torchvision.datasets.CIFAR100(root='../data', train=True, download=True, transform=transform_train)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=bs, shuffle=True, num_workers=16)
+
+    testset = torchvision.datasets.CIFAR100(root='../data', train=False, download=True, transform=transform_test)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=16)
+    imgSize = 32
+    numClasses = 100
+elif args.dataset == "tinyImageNet":
+    print("Using tinyImageNet with imsize = 64")
+    transform_train = transforms.Compose([
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    ])
+
+    transform_test = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    ])
+
+    """ trainset = torchvision.datasets.ImageFolder(root='../data/tiny-imagenet-200/tiny-imagenet-200/train', transform=transform_train)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=512, shuffle=True, num_workers=16)
+
+    testset = torchvision.datasets.ImageFolder(root='../data/tiny-imagenet-200/tiny-imagenet-200/val', transform=transform_test)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=16) """
+
+    """ trainset = TinyImageNetDataset(
+        root_dir='../data/tinyData/tiny-imagenet-200',
+        mode='train',
+        preload=True,
+        #load_transform=[transform_train],  #FIX: SEE IF THIS NEEDS FIXING FOR BETTER ACCURACY
+        transform=transform_train,
+        download=False,
+        max_samples=None
+    ) """
+    #trainloader = torch.utils.data.DataLoader(trainset, batch_size=512, shuffle=True, num_workers=0)
+    #trainld = deeplake.load("hub://activeloop/tiny-imagenet-train")
+    #trainloader = trainld.pytorch(num_workers=0, batch_size=512, shuffle=False)
+
+    """ testset = TinyImageNetDataset(
+        root_dir='../data/tinyData/tiny-imagenet-200',
+        mode='val',
+        preload=True,
+        #load_transform=[transform_test],
+        transform=transform_test,
+        download=False,
+        max_samples=None
+    ) """
+    #testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=0)
+    #testld = deeplake.load("hub://activeloop/tiny-imagenet-test")
+    #testloader = testld.pytorch(num_workers=0, batch_size=100, shuffle=False)
+
+    # Load the datasets
+    trainset = TinyImageNetHFDataset(split='train', transform=transform_train)
+    testset = TinyImageNetHFDataset(split='valid', transform=transform_test)
+
+    # Create the dataloaders
+    trainloader = DataLoader(trainset, batch_size=bs, shuffle=True, num_workers=4)
+    testloader = DataLoader(testset, batch_size=100, shuffle=False, num_workers=4)
+
+    imgSize = 64
+    numClasses = 200
+elif args.dataset == "tinyImageNet224":
+    trainset = torchvision.datasets.ImageFolder(root='../data/tiny-imagenet-200/tiny-224/train', transform=transform_train)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=bs, shuffle=True, num_workers=16)
+
+    testset = torchvision.datasets.ImageFolder(root='../data/tiny-imagenet-200/tiny-224/val', transform=transform_test)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=16)
+    imgSize = 64
+    numClasses = 200
 
 classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 seed = 5
@@ -144,24 +229,26 @@ elif args.net=="convmixer":
     # from paper, accuracy >96%. you can tune the depth and dim to scale accuracy and speed.
     net = ConvMixer(256, 16, kernel_size=args.convkernel, patch_size=1, n_classes=10)
 elif args.net=="mlpmixer":
+    K = 0
+    sparsity = 0
     from mlpMixer import MLPMixer
     net = MLPMixer(
-            image_size = 32,
+            image_size = imgSize,
             channels = 3,
-            patch_size = 4,
-            dim = 256,
-            depth = 6,
-            num_classes = 10
+            patch_size = args.patch,
+            dim = args.dimhead,
+            depth = args.depth,
+            num_classes = numClasses
         ).to(device) 
 elif args.net=="mlpmixerPar":
     from mlpMixerPar import MLPMixer
     net = MLPMixer(
-    image_size = 32,
+    image_size = imgSize,
     channels = 3,
     patch_size = args.patch,
-    dim = 256,
+    dim = args.dimhead,
     depth = args.depth,
-    num_classes = 10,
+    num_classes = numClasses ,
     alphaLR = alphaLR,
     K = args.k
 )
@@ -267,7 +354,7 @@ if args.resume:
     # Load checkpoint.
     print('==> Resuming from checkpoint..')
     assert os.path.isdir('checkpoint'), 'Error: no checkpoint directory found!'
-    checkpoint = torch.load('./checkpoint/{}-ckpt.t7'.format(args.net))
+    checkpoint = torch.load('./checkpoint/{}-{}-{}-ckpt.t7'.format(args.net,args.dataset,k))
     net.load_state_dict(checkpoint['net'])
     best_acc = checkpoint['acc']
     start_epoch = checkpoint['epoch']
@@ -293,7 +380,12 @@ for name, param in net.named_parameters():
     print(name, param.size())
 #pdb.set_trace()
 
+#Print total number of trainable parameters
+total_params = sum(p.numel() for p in net.parameters() if p.requires_grad)
+print("Total number of trainable parameters: ", total_params)
+#pdb.set_trace()
 ##### Training
+#Enable mixed precision training
 scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
 def train(epoch,alphaLR = 0.01):
     print('\nEpoch: %d' % epoch)
@@ -301,7 +393,9 @@ def train(epoch,alphaLR = 0.01):
     train_loss = 0
     correct = 0
     total = 0
+    #pdb.set_trace()
     for batch_idx, (inputs, targets) in enumerate(trainloader):
+        
         inputs, targets = inputs.to(device), targets.to(device)
         # Train with amp
         with torch.cuda.amp.autocast(enabled=use_amp):
@@ -354,7 +448,7 @@ def test(epoch):
         
         #FIX THIS: save the checkpoint only after required K is achieved
         if epoch > 70:
-            torch.save(state, f'checkpoint/mlpPD_{args.depth}_patch{args.patch}_{args.expName}_{args.sparsity}.pth')
+            torch.save(state, f'checkpoint/mlpPD_{args.depth}_patch{args.patch}_{args.expName}_{sparsity}_{args.dataset}.pth')
         best_acc = acc
     
     os.makedirs("log", exist_ok=True)

@@ -29,6 +29,7 @@ class PreNormResidual(nn.Module):
 
 
     def forward(self, x):
+        #pdb.set_trace()
         return self.fn(self.norm(x)) + x
     
 """ def FeedForward(dim, expansion_factor = 4, dropout = 0., dense = nn.Linear, norm=512):

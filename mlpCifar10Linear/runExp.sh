@@ -1,0 +1,5 @@
+reset && CUDA_VISIBLE_DEVICES=0 python trainCifar10PD.py --expName tImgNet --opt adamw --dataset tinyImageNet --net mlpmixerPar --n_epochs 300 --lr 1e-3 --expNum 1 --sparsity 0 --num_layers 1 --k 2
+reset && CUDA_VISIBLE_DEVICES=0 python trainCifar10PD.py --expName tImgNet --opt adamw --dataset tinyImageNet --net mlpmixerPar --n_epochs 300 --lr 1e-3 --expNum 1 --sparsity 0 --num_layers 1 --k 12
+reset && CUDA_VISIBLE_DEVICES=0 python trainCifar10PD.py --expName tImgNet --opt adamw --dataset tinyImageNet --net mlpmixerPar --n_epochs 300 --lr 1e-3 --expNum 1 --sparsity 0 --num_layers 1 --k 25
+reset && CUDA_VISIBLE_DEVICES=0 python trainCifar10PD.py --expName tImgNet --opt adamw --dataset tinyImageNet --net mlpmixerPar --n_epochs 300 --lr 1e-3 --expNum 1 --sparsity 0 --num_layers 1 --k 50
+reset && CUDA_VISIBLE_DEVICES=0 python trainCifar10PD.py --expName tImgNet --opt adamw --dataset tinyImageNet --net mlpmixerPar --n_epochs 300 --lr 1e-3 --expNum 1 --sparsity 0 --num_layers 1 --k 100
